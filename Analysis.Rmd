@@ -1,0 +1,159 @@
+---
+title: 'Tornadoes, floods,  tropical storms and heat-related events. Human and economics damage'
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Synopsis
+
+In this report we aim to describe weather events in USA from  U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. The goal is to identify which kind of event are more dangeorus for people (fatalities and injuries) and which cause more damage in economics terms (property damage). We work on 902297 events, and we found what tornadoes, storm tropical and all events related with heat cause (in mean) more fatalities, injuries, property and crop damages than others.
+
+## Data processing
+
+From the U.S. National Oceanic and Atmospheric Administration's (NOAA) we obtained the data. This database tracks characteristics of major storms and weather event and estimates fatalities, injuries, property  and crop damage.
+
+### Download and load data into R
+
+We firts read the data from a  bz2 compress file. R has the capabilities for read this kind of file. The raw data (decompressed) is a delimited file using *,* for separate fields.
+
+```{r download_load, cache=TRUE}
+
+if(!file.exists("./data")){
+	dir.create("./data")
+}
+
+if(!file.exists("./data/StormData.csv.bz2")){
+	fileUrl1 <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+	
+	download.file(fileUrl1, destfile ="./data/StormData.csv.bz2" ,method = "curl" )
+	
+}
+storm <- read.csv("./data/StormData.csv.bz2")
+```
+In the [documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) there are 44 differents evtypes, but in the data has 998. Because we look up the most harmful for population health and the evtypes which have the greater economic consequences, we don't care about the number levels of evtype in data.
+
+The variables of interest are *evtype*, *fatalities*, *injuries*, *propdmb* and *cropdmg* . We can summarize this variable, and create one dataset containing only those.
+
+
+```{r names_and_summary}
+dim(storm)
+names(storm) <- tolower(names(storm))
+nlevels(storm$evtype)
+# a lot of levels, perhaps we'll have to clean data , using 44 levels
+# sum columns with similar names which indicate same variables. But  
+
+# no NA's, good0
+summary(storm[,c("evtype","fatalities","injuries","propdmg","cropdmg")])
+
+
+```
+there isn't  missing values in variables. 
+
+We create a new data set containing only the interest variables.
+
+```{r}
+storm1 <- storm[,c("evtype","fatalities","injuries",
+						 "propdmg","cropdmg")]
+```
+
+
+## Results
+
+Our first step is summarize data to find out which type of events are the most harmful. For this we create 2 data.frames, one with total of fatalities, injuries and propdamage by event type and other with the averages.
+
+```{r summarise_data}
+library(dplyr)
+
+grouped <- group_by(storm1,evtype)
+
+totales <- summarise(grouped, 
+						fatalities = sum(fatalities),
+						injuries = sum(injuries),
+						propdmg = sum(propdmg),
+						cropdmg = sum(cropdmg),
+						Nevent =n()
+						)
+
+
+medias <- summarise(grouped, 
+						fatalities = mean(fatalities),
+						injuries = mean(injuries),
+						propdmg = mean(propdmg),
+						cropdmg = mean(cropdmg),
+						Nevent =n()
+						)
+
+```
+
+#### Sum and means of fatalities 
+
+Show the 10 higher.
+
+```{r fatalities}
+# fatalities
+(fatalitiesTot <- arrange(totales, desc(fatalities))[,c("evtype","fatalities","Nevent")])
+(fatalitiesMean <- arrange(medias, desc(fatalities))[,c("evtype","fatalities","Nevent")])
+
+```
+
+In total the most harmful events are tornadoes and excesive heat while in means are tornadoes, cold and snow and the particular tropical storm names *Gordon*. This indicate what tornadoes and heat events are a death common cause related with weather events.
+
+#### Sum and means of injuries
+
+```{r injuries}
+(injuriesTot <- arrange(totales, desc(injuries))[,c("evtype","injuries","Nevent")])
+(injuriesMean <- arrange(medias, desc(injuries))[,c("evtype","injuries","Nevent")])
+```
+Again, tornadoes, heat events and tropical storm (perhaps TSTM winds and floods is related with tropical storms) are the most harmful, in total and means number of injuries
+
+#### Sum and means of property damage
+
+```{r propdmg}
+(propdmgTot <- arrange(totales, desc(propdmg))[,c("evtype","propdmg","Nevent")])
+(propdmgMean <- arrange(medias, desc(propdmg))[,c("evtype","propdmg","Nevent")])
+```
+
+For total property damage tornadoes and flood are the worst event while in mean is coastal erosion and heavy rain and flood. 
+
+#### Sum and means of crop damage
+
+```{r cropdmg}
+(cropdmgTot <- arrange(totales, desc(cropdmg))[,c("evtype","cropdmg","Nevent")])
+(cropdmgMean <- arrange(medias, desc(cropdmg))[,c("evtype","cropdmg","Nevent")])
+
+```
+For total crop damage the worst is hail and it's a common event (288,661), there are events related with storm (tropical? ) like *tstm wind* and *flood* . The means show particular events with a high crop damage
+
+## Figure
+
+Let's go to use the totals instead of mean to plot because 
+
+```{r, fig.width=10, fig.height=6.5}
+
+par(mfrow=(c(2,2)))
+
+tam = 0.7
+dotchart(x=fatalitiesTot[1:10,"fatalities"], labels=fatalitiesTot[1:10,"evtype"],
+			pch=19,  main = "Fatalities by event", xlab="Total deaths", cex = tam)
+
+dotchart(x=injuriesTot[1:10,"injuries"], labels=injuriesTot[1:10,"evtype"],
+			pch=19,  main = "Injuries by event",xlab="Total injuries", cex = tam )
+
+
+dotchart(x=propdmgTot[1:10,"propdmg"], labels=propdmgTot[1:10,"evtype"],
+			pch=19, main = "Property damage by event", xlab="Total, in $", cex = tam )
+
+dotchart(x=cropdmgTot[1:10,"cropdmg"], labels=cropdmgTot[1:10,"evtype"],
+			pch=19, main=" Crop damage", xlab="Total, in $", cex = tam )
+
+
+```
+
+As we can see in the figure Tornado are the most harmful event for population health and property damage. For farmers, hail is the greatest concern.
+
+Events related with heat are the second (EXCESSIVE HEAT) and fourth (HEAT) by fatalities. Floods are the third causes of death and injuries, but it's the second in property and crop damage. 
+
+### Next steps
+
+In order to clarify analysis we have to clean and depurate data base, especially the EVTYPE variable. We have a lot of different EVTYPE, and we  must connect what they refer to the same event
